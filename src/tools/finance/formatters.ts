@@ -202,12 +202,24 @@ export function formatAnalystEstimates(data: unknown): string {
 export function formatEarnings(data: unknown): string {
   const d = (data && typeof data === 'object') ? data as Rec : {};
   if (Object.keys(d).length === 0) return 'No earnings data available.';
+  // Flat shape: each entry IS one filing. data.earnings[0] (already unwrapped upstream)
+  // lands on the most recent period's 8-K when present (sorted report_period DESC, filing_date ASC).
+  const figures = ((d.quarterly ?? d.annual) && typeof (d.quarterly ?? d.annual) === 'object')
+    ? (d.quarterly ?? d.annual) as Rec
+    : {};
+  const ticker = (d.ticker as string)?.toUpperCase() ?? '';
   const lines: string[] = [];
-  if (d.revenue !== undefined) lines.push(`Revenue: ${fmtNum(d.revenue)}`);
-  if (d.eps !== undefined) lines.push(`EPS: ${fmtPrice(d.eps)}`);
-  if (d.revenue_surprise !== undefined) lines.push(`Revenue Surprise: ${fmtPct(d.revenue_surprise)}`);
-  if (d.eps_surprise !== undefined) lines.push(`EPS Surprise: ${fmtPct(d.eps_surprise)}`);
-  return lines.length > 0 ? lines.join('\n') : JSON.stringify(d);
+  const header = `${ticker} Earnings — ${fmtDate(d.report_period)}${d.fiscal_period ? ` (${d.fiscal_period})` : ''}${d.currency ? ` [${d.currency}]` : ''}`;
+  lines.push(header.trim());
+  lines.push('');
+  lines.push(`Source: ${d.source_type ?? '—'} | Filed: ${String(d.filing_date ?? '—').slice(0, 10)} | Accession: ${d.accession_number ?? '—'}`);
+  if (figures.revenue !== undefined) lines.push(`Revenue: ${fmtNum(figures.revenue)}`);
+  if (figures.net_income !== undefined) lines.push(`Net Income: ${fmtNum(figures.net_income)}`);
+  const eps = figures.earnings_per_share ?? figures.eps;
+  if (eps !== undefined) lines.push(`EPS: ${fmtPrice(eps)}`);
+  if (figures.revenue_surprise !== undefined) lines.push(`Revenue Surprise: ${fmtPct(figures.revenue_surprise)}`);
+  if (figures.eps_surprise !== undefined) lines.push(`EPS Surprise: ${fmtPct(figures.eps_surprise)}`);
+  return lines.join('\n');
 }
 
 export function formatCryptoPrice(data: unknown): string {
